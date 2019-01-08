@@ -1,0 +1,71 @@
+---
+title: "VCE Based On Subsampled Data"
+author: "Peter von Rohr"
+date: "2019-01-08"
+output: html_notebook
+---
+
+
+## Disclaimer
+Different strategies of sub-sampling data from a large data set are evaluated with respect to variance components estimation.
+
+
+## Introduction
+Breeding values are predicted using BLUP animal models (BLUP-AM). BLUP-AM are specialized members of the larger class of linear mixed effect models (LME). In BLUP-AM, predicted breeding values (and estimates for fixed effects) are obtained by solving mixed-model equations which require known variance components from all random components. 
+
+
+## Variance Components Estimation (VCE)
+Breeding values are predicted for very large data sets. Normally, these data sets are too large to be used in variance components estimation. Hence we need a method to draw random samples from the data to get estimates of variance components. The goal is to use as small a data sample as possible to still get reliable estimates of variance components.
+
+
+## Numerical Example
+We want to use the data sets in `pedigreemm` to do a few experiments with data sub-sampling. In a first step, we are just reproducing the first example shown in Vazquez et al. (2010). This leads to the following analysis
+
+```{r}
+require(pedigreemm)
+milk <- within(milk, sdMilk <- milk / sd(milk))
+
+### # either run the analysis, or load the results from the file
+s_result_file <- "fm1.rda"
+if (file.exists(s_result_file)){
+  load(s_result_file)
+} else {
+system.time(
+  fm1 <- pedigreemm(sdMilk ~ lact + log(dim) + (1|id) + (1|herd), 
+                    data = milk, pedigree = list(id = pedCowsR)))
+  save(fm1, file = s_result_file)  
+}
+```
+
+The above output gives us the timing of the analysis. Now we want to have a look at the results of the analysis.
+
+```{r}
+summary(fm1)
+```
+
+
+## Subsampling
+In our example the complete data set contains `r nrow(milk)` records. From the complete record, we want to take a random sample of a given size and from this smaller data set variance components should be estimated again.
+
+
+## Strategies
+Several strategies are possible to generate smaller data sets from the complete data set. The following list presents some of them
+
+* Randomly select records from the large data set
+* Keep the records coming from the largest herds
+
+
+### Random Selection
+
+
+### Largest Herds
+Whether the sub-sampling based on herd size is a good strategy or not could depend on the distribution of herd sizes. The following frequency table and the following histogram gives a first impression on the distribution
+
+```{r}
+table(milk$herd)
+```
+
+```{r}
+hist(as.numeric(milk$herd))
+```
+
