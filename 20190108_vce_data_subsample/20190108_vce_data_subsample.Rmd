@@ -56,6 +56,36 @@ Several strategies are possible to generate smaller data sets from the complete 
 
 
 ### Random Selection
+The strategy of `random selection` mean that we are just randomly choosing observations out of the complete data set. This is done via the function `sample()` which draws a random sample out of a large data set.
+
+```{r}
+set.seed(432)
+n_sample_size <- 500
+vec_rsample_idx <- sample(1:nrow(milk), size = n_sample_size)
+df_rsample_milk <- milk[vec_rsample_idx,]
+dim(df_rsample_milk)
+head(df_rsample_milk)
+```
+
+Now the same analysis is done using the smaller sample data set.
+
+```{r}
+s_result_file_rsample <- "fm1rsample.rda"
+if (file.exists(s_result_file_rsample)){
+  load(s_result_file_rsample)
+} else {
+system.time(
+  fm1rsample <- pedigreemm(sdMilk ~ lact + log(dim) + (1|id) + (1|herd), 
+                    data = df_rsample_milk, pedigree = list(id = pedCowsR)))
+  save(fm1, file = s_result_file_rsample)  
+}
+```
+
+The results are
+
+```{r}
+summary(fm1rsample)
+```
 
 
 ### Largest Herds
@@ -68,4 +98,13 @@ table(milk$herd)
 ```{r}
 hist(as.numeric(milk$herd))
 ```
+
+
+Drawing the histogram using `ggplot2` leads to 
+
+```{r}
+require(ggplot2)
+ggplot(milk, aes(herd)) + geom_histogram(stat = "count")
+```
+
 
