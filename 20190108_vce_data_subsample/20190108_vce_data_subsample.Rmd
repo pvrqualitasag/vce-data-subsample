@@ -114,7 +114,7 @@ attr(o_cur_rsample, "sc")
 for the residual variance. Now we are ready to repeat the sub-sampling a number of times and get boot-strapped results. 
 
 ```{r}
-n_nr_rep <- 3
+n_nr_rep <- 100
 l_rep_results <- sapply(1:n_nr_rep, 
                         function(x, pn_sample_size){
                           vec_rsample_idx <- sample(1:nrow(milk), size = n_sample_size)
@@ -126,7 +126,6 @@ l_rep_results <- sapply(1:n_nr_rep,
                                       herd = o_cur_rsample_result$herd[1,1],
                                       residual = attr(o_cur_rsample_result, "sc")))
                         }, n_sample_size)
-l_rep_results
 ```
 
 From these results, we take the mean and the standard deviation
