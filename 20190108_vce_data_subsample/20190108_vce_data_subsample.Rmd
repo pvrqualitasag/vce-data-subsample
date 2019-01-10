@@ -77,7 +77,7 @@ if (file.exists(s_result_file_rsample)){
 system.time(
   fm1rsample <- pedigreemm(sdMilk ~ lact + log(dim) + (1|id) + (1|herd), 
                     data = df_rsample_milk, pedigree = list(id = pedCowsR)))
-  save(fm1, file = s_result_file_rsample)  
+  save(fm1rsample, file = s_result_file_rsample)  
 }
 ```
 
@@ -85,6 +85,59 @@ The results are
 
 ```{r}
 summary(fm1rsample)
+```
+
+The same subsampling of the data should be repeated and we want to collect the variance estimates. First, we have to check how to extract the variance estimates from `fm1rsample`. The function `VarCorr()` can be used to extract the variance components. 
+
+```{r}
+(o_cur_rsample <- VarCorr(fm1rsample))
+```
+
+The single components are obtained by 
+
+```{r}
+o_cur_rsample$id[1,1]
+```
+
+for the genetic additive variance, by
+
+```{r}
+o_cur_rsample$herd[1,1]
+```
+
+for the herd variance and by 
+
+```{r}
+attr(o_cur_rsample, "sc")
+```
+
+for the residual variance. Now we are ready to repeat the sub-sampling a number of times and get boot-strapped results. 
+
+```{r}
+n_nr_rep <- 3
+l_rep_results <- sapply(1:n_nr_rep, 
+                        function(x, pn_sample_size){
+                          vec_rsample_idx <- sample(1:nrow(milk), size = n_sample_size)
+                          df_rsample_milk <- milk[vec_rsample_idx,]
+                          fm1rsample <- pedigreemm(sdMilk ~ lact + log(dim) + (1|id) + (1|herd), 
+                                                   data = df_rsample_milk, pedigree = list(id = pedCowsR))
+                          o_cur_rsample_result <- VarCorr(fm1rsample)
+                          return(list(id = o_cur_rsample_result$id[1,1],
+                                      herd = o_cur_rsample_result$herd[1,1],
+                                      residual = attr(o_cur_rsample_result, "sc")))
+                        }, n_sample_size)
+l_rep_results
+```
+
+From these results, we take the mean and the standard deviation
+
+```{r}
+mean(unlist(l_rep_results["id",]))
+sd(unlist(l_rep_results["id",]))
+mean(unlist(l_rep_results["herd",]))
+sd(unlist(l_rep_results["herd",]))
+mean(unlist(l_rep_results["residual",]))
+sd(unlist(l_rep_results["residual",]))
 ```
 
 
