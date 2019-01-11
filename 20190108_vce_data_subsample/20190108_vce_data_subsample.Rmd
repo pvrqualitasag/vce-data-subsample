@@ -90,7 +90,13 @@ summary(fm1rsample)
 The same subsampling of the data should be repeated and we want to collect the variance estimates. First, we have to check how to extract the variance estimates from `fm1rsample`. The function `VarCorr()` can be used to extract the variance components. 
 
 ```{r}
-(o_cur_rsample <- VarCorr(fm1rsample))
+?VarCorr
+```
+
+
+```{r}
+o_cur_rsample <- VarCorr(fm1rsample)
+print(o_cur_rsample, comp=c("Variance","Std.Dev."))
 ```
 
 The single components are obtained by 
@@ -108,13 +114,27 @@ o_cur_rsample$herd[1,1]
 for the herd variance and by 
 
 ```{r}
+str(o_cur_rsample)
+```
+
+```{r}
+str(fm1rsample)
+```
+
+
+```
+FIXME: The following statement does not return the residual variance component estimate but its standard deviation
+```
+
+
+```{r}
 attr(o_cur_rsample, "sc")
 ```
 
 for the residual variance. Now we are ready to repeat the sub-sampling a number of times and get boot-strapped results. 
 
 ```{r}
-n_nr_rep <- 100
+n_nr_rep <- 3
 l_rep_results <- sapply(1:n_nr_rep, 
                         function(x, pn_sample_size){
                           vec_rsample_idx <- sample(1:nrow(milk), size = n_sample_size)
@@ -130,13 +150,14 @@ l_rep_results <- sapply(1:n_nr_rep,
 
 From these results, we take the mean and the standard deviation
 
-```{r}
-mean(unlist(l_rep_results["id",]))
-sd(unlist(l_rep_results["id",]))
-mean(unlist(l_rep_results["herd",]))
-sd(unlist(l_rep_results["herd",]))
-mean(unlist(l_rep_results["residual",]))
-sd(unlist(l_rep_results["residual",]))
+```{r, echo=FALSE, results='asis'}
+vec_components <- c("Id", "Herd", "Residual")
+vec_rsample_mean <- unlist(sapply(vec_components, function(x) mean(unlist(l_rep_results[tolower(x),]))))
+vec_rsample_sd <- unlist(sapply(vec_components, function(x) sd(unlist(l_rep_results[tolower(x),]))))
+tbl_rsample_result <- tibble::data_frame(Component = vec_components,
+                                         `Sub Sample Mean` = vec_rsample_mean,
+                                         `Sub Sample Sd` = vec_rsample_sd)
+knitr::kable(tbl_rsample_result)
 ```
 
 
@@ -159,4 +180,69 @@ require(ggplot2)
 ggplot(milk, aes(herd)) + geom_histogram(stat = "count")
 ```
 
+
+When data are to be sampled based on herd size, we have to sort the original data set according to herdsize. 
+
+```{r}
+require(dplyr)
+tbl_milk <- tibble::as_tibble(milk)
+tbl_milk_hs <- tbl_milk %>% 
+  group_by(herd) %>%
+  summarize(herdsize = n()) %>%
+  arrange(desc(herdsize)) %>%
+  mutate(cumhs = cumsum(herdsize))
+
+tbl_milk_hs
+```
+
+To get a certain sample size, a filter on the cumulative herd size is applied.
+
+```{r}
+tbl_hs_herd <- tbl_milk_hs %>% filter(cumhs < n_sample_size)
+tbl_hs_herd
+```
+
+Because, we want to have a dataset with at least `r n_sample_size` of observations, we include an additional row from the sorted `tbl_df`. 
+
+```{r}
+n_last_row_chosen <- nrow(tbl_hs_herd)
+tbl_hs_herd <- tbl_mil_hs_sample %>% bind_rows(tbl_milk_hs[(n_last_row_chosen+1),])
+tbl_hs_herd
+```
+
+The tibble `tbl_hs_herd` is used to select observations from the original dataset by joining `tbl_hs_herd` back to the original `tbl_milk` using the column `herd` as joining criterion.
+
+```{r}
+tbl_milk_hs_sample <- tbl_milk %>% inner_join(tbl_hs_herd)
+tbl_milk_hs_sample
+```
+
+This sample tibble has dimensions
+
+```{r}
+dim(tbl_milk_hs_sample)
+```
+
+Now the analysis is done based on this sample tibble dataframe
+
+```{r}
+s_hs_sample <- "fm1hssample.rda"
+if (file.exists(s_hs_sample)){
+  load(s_hs_sample)
+} else {
+  fm1hssample <- pedigreemm(sdMilk ~ lact + log(dim) + (1|id) + (1|herd), 
+                    data = tbl_milk_hs_sample, pedigree = list(id = pedCowsR))
+  save(fm1hssample, file = s_hs_sample)
+  
+}
+summary(fm1hssample)
+```
+
+These results show a clearly reduced herd-variance component and an increased value of the residual variance component compared to the estimate of the complete dataset. The estimate of the genetic-additive variance is comparable to what was obtained with the complete dataset. Selecting a subset of the data just on the criterion of large herd sizes does not give us the opportunity to repeat the vce based on different subset selections as was the case in the random selection strategy. This can be compensated by setting a minimum number of observation per herd and then randomly select from this smaller dataset.
+
+
+## Connectedness
+```
+TBC
+```
 
