@@ -87,11 +87,7 @@ The results are
 summary(fm1rsample)
 ```
 
-The same subsampling of the data should be repeated and we want to collect the variance estimates. First, we have to check how to extract the variance estimates from `fm1rsample`. The function `VarCorr()` can be used to extract the variance components. 
-
-```{r}
-?VarCorr
-```
+The same subsampling of the data should be repeated and we want to collect the variance estimates. First, we have to check how to extract the variance estimates from `fm1rsample`. The function `VarCorr()` can be used to extract the variance components. The result object of `VarCorr()` has a print method with an argument `comp` which can be used to indicate which components should be printed
 
 
 ```{r}
@@ -114,24 +110,33 @@ o_cur_rsample$herd[1,1]
 for the herd variance and by 
 
 ```{r}
-str(o_cur_rsample)
-```
-
-```{r}
-str(fm1rsample)
-```
-
-
-```
-FIXME: The following statement does not return the residual variance component estimate but its standard deviation
-```
-
-
-```{r}
 attr(o_cur_rsample, "sc")
 ```
 
-for the residual variance. Now we are ready to repeat the sub-sampling a number of times and get boot-strapped results. 
+for the residual standard deviation. 
+
+### Additional Aspects of lmer Results
+The variance-covariance matrix of the estimates of the fixed effects are obtained by
+
+```{r}
+vcov(fm1rsample)
+```
+
+The variance of the residuals is
+
+```{r}
+var(resid(fm1rsample))
+```
+
+The deviance is obtained from the slot `devcomp`
+
+```{r}
+fm1rsample@devcomp
+```
+
+
+### Bootstrap Repetitions
+Now we are ready to repeat the sub-sampling a number of times and get boot-strapped results. 
 
 ```{r}
 n_nr_rep <- 3
@@ -144,7 +149,7 @@ l_rep_results <- sapply(1:n_nr_rep,
                           o_cur_rsample_result <- VarCorr(fm1rsample)
                           return(list(id = o_cur_rsample_result$id[1,1],
                                       herd = o_cur_rsample_result$herd[1,1],
-                                      residual = attr(o_cur_rsample_result, "sc")))
+                                      residual = attr(o_cur_rsample_result, "sc")^2))
                         }, n_sample_size)
 ```
 
@@ -206,7 +211,7 @@ Because, we want to have a dataset with at least `r n_sample_size` of observatio
 
 ```{r}
 n_last_row_chosen <- nrow(tbl_hs_herd)
-tbl_hs_herd <- tbl_mil_hs_sample %>% bind_rows(tbl_milk_hs[(n_last_row_chosen+1),])
+tbl_hs_herd <- tbl_hs_herd %>% bind_rows(tbl_milk_hs[(n_last_row_chosen+1),])
 tbl_hs_herd
 ```
 
@@ -246,3 +251,4 @@ These results show a clearly reduced herd-variance component and an increased va
 TBC
 ```
 
+Connectedness is a concept which is used as quality criterion for predicted breeding values. For sources see Fouilloux2008. In a much simpler approach which was also advocated by Ismo Stranden (personal communication), 
